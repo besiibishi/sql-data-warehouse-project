@@ -1,0 +1,17 @@
+/*
+Created a new database called DataWarehouse and added three schemas called bronze, silver, gold
+*/
+
+
+use master;
+
+Create database DataWarehouse;
+go
+use DataWarehouse;
+go
+create schema bronze;
+go
+create schema silver;
+go
+create schema gold;
+
