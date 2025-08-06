@@ -1,0 +1,103 @@
+--ERP_CUST_AZ12
+-- identify out-of-range dates
+select distinct
+bdate from silver.erp_cust_az12
+where bdate < '1924-01-01' or bdate > GETDATE()
+
+--data starndardization & consistency
+
+select distinct gen
+from silver.erp_cust_az12
+
+--ERP_LOC_A101
+--qikjo lidhet me cid te cust crm kshtu qe duhet me kan rreshti i njejt e duhet me hek -
+select cid,cntry
+from silver.erp_loc_a101
+
+--data starndardization & consistency for country
+
+select distinct cntry
+from silver.erp_loc_a101
+order by cntry
+
+select * from silver.erp_loc_a101
+
+--PX_CAT_G1V2
+
+
+--quality checks
+
+--check for unwanted spaces 
+
+select prd_nm
+from silver.crm_prd_info
+where prd_nm != TRIM(prd_nm)
+
+select * from bronze.crm_prd_info
+
+--check for costs
+select prd_cost
+from silver.crm_prd_info
+where prd_cost < 0
+
+select prd_line
+from silver.crm_prd_info
+
+select *
+from silver.crm_prd_info
+where prd_end_dt < prd_start_dt
+
+select * from silver.crm_prd_info
+
+
+SELECT prd_id, prd_key,
+prd_nm,
+prd_start, prd_end_dt,
+DATEADD(DAY, -1, LEAD(prd_start) OVER (PARTITION BY prd_key ORDER BY prd_start)) AS prd_end_dt_test
+FROM bronze.crm_prd_info
+WHERE prd_key IN ('AC-HE-HL-U509-R', 'AC-HE-HL-U509')
+
+
+--testing the sales_details:
+
+select 
+nullif(sls_ship_dt,0) sls_ship_dt
+from bronze.crm_sales_details
+where sls_ship_dt <= 0 or len(sls_ship_dt) != 8 or sls_ship_dt>20500101 or sls_ship_dt < 19000101
+
+--invalid date orders
+
+select *
+from bronze.crm_sales_details
+where sls_order_dt > sls_ship_dt
+
+--me i kshyr shitjet sasine dhe cmimet
+
+SELECT 
+  sls_sales AS old_sls_sales, 
+  sls_quantity, 
+  sls_price AS old_sls_price,
+
+  CASE 
+    WHEN sls_sales IS NULL OR sls_sales <= 0 OR sls_sales != sls_quantity * ABS(sls_price)
+      THEN sls_quantity * ABS(sls_price)
+    ELSE sls_sales
+  END AS sls_sales,
+
+  CASE 
+    WHEN sls_price IS NULL OR sls_price <= 0
+      THEN sls_sales / NULLIF(sls_quantity, 0)
+    ELSE sls_price
+  END AS sls_price
+
+FROM bronze.crm_sales_details
+WHERE sls_sales != sls_quantity * sls_price 
+   OR sls_sales IS NULL 
+   OR sls_quantity IS NULL
+   OR sls_price IS NULL 
+   OR sls_sales <= 0 
+   OR sls_quantity <= 0
+   OR sls_price <= 0
+ORDER BY sls_sales, sls_quantity, sls_price;
+
+select * from silver.crm_sales_details
